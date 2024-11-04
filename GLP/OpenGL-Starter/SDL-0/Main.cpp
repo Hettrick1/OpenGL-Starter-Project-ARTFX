@@ -1,33 +1,26 @@
 ﻿#include <iostream>
 #include <SDL.h>
 #include <glew.h>
+
+#include <string>
+#include <fstream>
+
 using namespace std;
 //#define GLEW_STATIC
 
 float vertices[] = {
-	-0.5f, -0.5f, 0.0f,
-	 0.5f, -0.5f, 0.0f,
-	 0.0f,  0.5f, 0.0f
+	// positions             // colors
+	 0.5f, -0.5f, 0.0f,  1.0f, 0.0f, 0.0f,
+	-0.5f, -0.5f, 0.0f,  0.0f, 1.0f, 0.0f,
+	 0.0f,  0.5f, 0.0f,  0.0f, 0.0f, 1.0f
+
 };
-
-const char* vertexShaderSource = "#version 330 core\n"
-"in vec3 pos;\n"
-"void main()\n"
-"{\n"
-"   gl_Position = vec4(pos.x, pos.y, pos.z, 1.0);\n"
-"}\0";
-
-
-const char* fragmentShaderSource = "#version 330 core\n"
-"out vec4 FragColor;\n"
-"void main()\n"
-"{\n"
-"   FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
-"}\n\0";
 
 GLuint VAO, VBO;
 unsigned int vertexShader, fragmentShader;
 unsigned int shaderProgram;
+
+string LoadShader(string fileName);
 
 int main(int argc, char* argv[])
 {
@@ -42,7 +35,7 @@ int main(int argc, char* argv[])
 	///////////SETTING UP SDL/////////////
 	//Create a simple window
 	int width = 400;
-	int height = 300;
+	int height = 350;
 	unsigned int center = SDL_WINDOWPOS_CENTERED;
 	SDL_Window* Window = SDL_CreateWindow("My window", center, center, width, height, SDL_WINDOW_OPENGL);
 	//SDL_WINDOW_OPENGL is a u32 flag !
@@ -58,6 +51,12 @@ int main(int argc, char* argv[])
 		cout << "Glew initialized successfully\n";
 	}
 
+	string vertexFile = LoadShader("SimpleVertexShader.vert").c_str();
+	const char* vertexShaderSource = vertexFile.c_str();
+
+	string fragmentFile = LoadShader("SimpleFragmentShader.frag");
+	const char* fragmentShaderSource = fragmentFile.c_str();
+
 	glGenBuffers(1, &VBO);
 	glGenBuffers(1, &VAO);
 
@@ -66,8 +65,10 @@ int main(int argc, char* argv[])
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); 
 
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*) 0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) 0);
 	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) (3 * sizeof(float)));
+	glEnableVertexAttribArray(1);
 
 	//vertex shader 
 	vertexShader = glCreateShader(GL_VERTEX_SHADER);
@@ -116,9 +117,14 @@ int main(int argc, char* argv[])
 		}
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
 
-
 		// Draw function
 		glUseProgram(shaderProgram);
+
+		float timeValue = (float)SDL_GetTicks() / 1000;
+		float newPosX = (sin(timeValue) / 2.0f);
+		int vertexUniform = glGetUniformLocation(shaderProgram, "offset");
+		glUseProgram(shaderProgram);
+		glUniform3f(vertexUniform, newPosX, 0.0f, 0.0f);
 
 		glBindVertexArray(VAO);
 
@@ -132,5 +138,21 @@ int main(int argc, char* argv[])
 	SDL_GL_DeleteContext(Context);
 
 	return 0;
+}
+
+string LoadShader(string fileName) {
+	ifstream myFile;
+	myFile.open(fileName);
+	if (myFile.fail()) {
+		cerr << "Error - failed to open " << fileName << endl;
+	}
+	string fileText = "";
+	string line = "";
+	while (getline(myFile, line)) {
+		fileText += line + '\n';
+	}
+
+	myFile.close();
+	return fileText;
 }
 
