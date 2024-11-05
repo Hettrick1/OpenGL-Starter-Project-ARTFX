@@ -22,5 +22,7 @@
   <ItemGroup>
     <None Include="SimpleVertexShader.vert" />
     <None Include="SimpleFragmentShader.frag" />
+    <None Include="SimpleVertexShader2.vert" />
+    <None Include="SimpleFragmentShader2.frag" />
   </ItemGroup>
 </Project>

@@ -11,5 +11,5 @@ uniform vec3 offset;
 void main()
 {
    gl_Position = vec4(aPos.x + offset.x, aPos.y + offset.y, aPos.z + offset.z, 1.0);
-   pos = vec3(color.x + offset.x + offset.y, color.y - offset.x - offset.y, color.z + offset.x + offset.y);
+   pos = vec3(color.y + offset.y, color.x - offset.x, color.x + offset.x);
 };
