@@ -23,13 +23,14 @@ unsigned int indices[] = {
 
 std::deque<float> snakeTailX;
 std::deque<float> snakeTailY;
-float speedX = 0.5f, speedY = 0.0f;
+float speedX = 0.5f, speedY = 0.0f, offsetX = 1.0f, offsetY = 0.0f;
 
 GLuint VAO, VBO, EBO;
 unsigned int vertexShader, fragmentShader;
 unsigned int shaderProgram;
 
 string LoadShader(string fileName);
+void InitializeGame();
 
 float positionX, positionY;
 
@@ -63,11 +64,7 @@ int main(int argc, char* argv[])
 		cout << "Glew initialized successfully\n";
 	}
 
-	for (int i = 0; i < 20; i++) {
-		float o = -i * 0.1;
-		snakeTailX.push_back(o);
-		snakeTailY.push_back(0);
-	}
+	InitializeGame();
 
 	//load shader files
 	string vertexFile1 = LoadShader("SimpleVertexShader2.vert").c_str();
@@ -131,17 +128,42 @@ int main(int argc, char* argv[])
 	double deltaTime = 0;
 	float oldTick = SDL_GetTicks(), currentTick = 0;
 
+	float x = 0, y = 0;
+
 	bool isRunning = true;
 	while (isRunning) {
 		currentTick = SDL_GetTicks();
 		deltaTime = (currentTick - oldTick)/1000;
+		x += speedX * deltaTime;
+		y += speedY * deltaTime;
 
-		positionX += speedX * deltaTime;
-		positionY += speedY * deltaTime;
-		snakeTailX.push_front(positionX);
-		snakeTailY.push_front(positionY);
-		snakeTailX.pop_back();
-		snakeTailY.pop_back();
+		if (x > 0.09f || x < -0.09f) {
+			positionX += 0.1 *offsetX;
+
+			snakeTailY.pop_back();
+			snakeTailX.pop_back();
+			snakeTailX.push_front(positionX);
+			snakeTailY.push_front(positionY);
+			x = 0;
+		}
+		else if (y > 0.09f || y < -0.09f) {
+			positionY += 0.1 * offsetY;
+
+			snakeTailX.pop_back();
+			snakeTailY.pop_back();
+			snakeTailX.push_front(positionX);
+			snakeTailY.push_front(positionY);
+			y = 0;
+		}
+
+
+		if (snakeTailX[0] + 0.05f > 1 || snakeTailX[0] - 0.05f < -1) {
+			InitializeGame();
+		}
+		if (snakeTailY[0] + 0.05f > 1 || snakeTailY[0] - 0.05f < -1) {
+			InitializeGame();
+		}
+
 		// Inputs
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
@@ -157,24 +179,32 @@ int main(int argc, char* argv[])
 					if (speedX == 0) {
 						speedX = 0.5f;
 						speedY = 0.0f;
+						offsetX = 1.0f;
+						offsetY = 0.0f;
 					}
 				}
 				if (event.key.keysym.sym == SDLK_LEFT) {
 					if (speedX == 0) {
 						speedX = -0.5f;
 						speedY = 0.0f;
+						offsetX = -1.0f;
+						offsetY = 0.0f;
 					}
 				}
 				if (event.key.keysym.sym == SDLK_UP) {
 					if (speedY == 0) {
 						speedX = 0.0f;
 						speedY = 0.5f;
+						offsetX = 0.0f;
+						offsetY = 1.0f;
 					}
 				}
 				if (event.key.keysym.sym == SDLK_DOWN) {
 					if (speedY == 0) {
 						speedX = 0.0f;
 						speedY = -0.5f;
+						offsetX = 0.0f;
+						offsetY = -1.0f;
 					}
 				}
 				break;
@@ -185,19 +215,11 @@ int main(int argc, char* argv[])
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
 
 		// Draw function
-		
-		glUseProgram(shaderProgram);
-		int vertexUniform = glGetUniformLocation(shaderProgram, "offset");
-		glUniform3f(vertexUniform, snakeTailX[0], snakeTailY[0], 0.0f);
 
-		glUseProgram(shaderProgram);
-		glBindVertexArray(VAO);
-		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-		for (int i = 1; i < snakeTailX.size(); i++) {
+		for (int i = 0; i < snakeTailX.size(); i++) {
 			glUseProgram(shaderProgram);
 			int vertexUniform = glGetUniformLocation(shaderProgram, "offset");
-			glUniform3f(vertexUniform, snakeTailX[i], snakeTailY[i], 0.0f);
+			glUniform3f(vertexUniform, floor(snakeTailX[i] * 10)/10, floor(snakeTailY[i] * 10)/10, 0.0f);
 
 			glUseProgram(shaderProgram);
 			glBindVertexArray(VAO);
@@ -228,5 +250,21 @@ string LoadShader(string fileName) {
 
 	myFile.close();
 	return fileText;
+}
+
+void InitializeGame() {
+	positionX = 0;
+	positionY = 0;
+	snakeTailX.clear();
+	snakeTailY.clear();
+	speedX = 0.5f;
+	speedY = 0.0f;
+	offsetX = 1.0f;
+	offsetY = 0.0f;
+	for (int i = 0; i < 16; i++) {
+		float o = -i * 0.1;
+		snakeTailX.push_back(o);
+		snakeTailY.push_back(0);
+	}
 }
 
