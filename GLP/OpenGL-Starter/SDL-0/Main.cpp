@@ -4,38 +4,34 @@
 
 #include <string>
 #include <fstream>
+#include <deque>
 
 using namespace std;
 //#define GLEW_STATIC
 
 float vertices[] = {
-	// positions             // colors
-	 -0.05f,  0.2f, 0.0f,	1.0f, 0.0f, 0.0f, //A
-	  0.05f,  0.2f, 0.0f,	0.0f, 1.0f, 0.0f, //E
-	  0.0f,   0.1f, 0.0f,	0.0f, 0.0f, 1.0f, //B
-	  0.15f,  0.0f, 0.0f,	1.0f, 0.0f, 0.0f, //I
-	  0.05f,  0.0f, 0.0f,	0.0f, 1.0f, 0.0f, //D
-	  0.05f, -0.2f, 0.0f,   0.0f, 0.0f, 1.0f, //H
-	  0.0f,  -0.1f, 0.0f,   1.0f, 0.0f, 0.0f, //F
-	 -0.05f, -0.2f, 0.0f,   0.0f, 1.0f, 0.0f, //G
-	 -0.05f,  0.0f, 0.0f,	0.0f, 0.0f, 1.0f, //C
-	 -0.15f,  0.0f, 0.0f,	1.0f, 0.0f, 0.0f, //K
-	  0.0f,   0.1f, 0.0f,	0.0f, 1.0f, 0.0f, //B
-	 -0.05f,  0.2f, 0.0f,	0.0f, 0.0f, 1.0f, //A
+	//position				//color
+	 0.05f,  0.05f, 0.0f,		1.0f, 0.0f, 0.0f,//top right
+	 0.05f, -0.05f, 0.0f,		1.0f, 0.0f, 0.0f,//bottom right
+	-0.05f, -0.05f, 0.0f,		1.0f, 0.0f, 0.0f,//bottom left
+	-0.05f,  0.05f, 0.0f,		1.0f, 0.0f, 0.0f,// top right
+};
+unsigned int indices[] = {
+	0, 1, 3, //first triangle
+	1, 2, 3  //second triangle
 };
 
-float maxX = 0.15;
-float maxY = 0.2;
+std::deque<float> snakeTailX;
+std::deque<float> snakeTailY;
+float speedX = 0.5f, speedY = 0.0f;
 
-GLuint VAO[2], VBO[2];
-unsigned int vertexShader[2], fragmentShader[2];
-unsigned int shaderProgram[2];
+GLuint VAO, VBO, EBO;
+unsigned int vertexShader, fragmentShader;
+unsigned int shaderProgram;
 
 string LoadShader(string fileName);
 
-float speedX = 0.5f;
-float speedY = 0.5f;
-float newPosY, newPosX;
+float positionX, positionY;
 
 int main(int argc, char* argv[])
 {
@@ -67,27 +63,31 @@ int main(int argc, char* argv[])
 		cout << "Glew initialized successfully\n";
 	}
 
+	for (int i = 0; i < 20; i++) {
+		float o = -i * 0.1;
+		snakeTailX.push_back(o);
+		snakeTailY.push_back(0);
+	}
+
 	//load shader files
-	string vertexFile1 = LoadShader("SimpleVertexShader.vert").c_str();
+	string vertexFile1 = LoadShader("SimpleVertexShader2.vert").c_str();
 	const char* vertexShaderSource1 = vertexFile1.c_str();
 
-	string fragmentFile1 = LoadShader("SimpleFragmentShader.frag");
+	string fragmentFile1 = LoadShader("SimpleFragmentShader2.frag");
 	const char* fragmentShaderSource1 = fragmentFile1.c_str();
 
-	string vertexFile2 = LoadShader("SimpleVertexShader2.vert").c_str();
-	const char* vertexShaderSource2 = vertexFile2.c_str();
-
-	string fragmentFile2 = LoadShader("SimpleFragmentShader2.frag");
-	const char* fragmentShaderSource2 = fragmentFile2.c_str();
-
 	//gen buffers
-	glGenBuffers(2, VBO);
-	glGenBuffers(2, VAO);
+	glGenBuffers(1, &VBO);
+	glGenBuffers(1, &VAO);
+	glGenBuffers(1, &EBO);
 
-	glBindVertexArray(VAO[0]);
+	glBindVertexArray(VAO);
 
-	glBindBuffer(GL_ARRAY_BUFFER, VBO[0]);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); 
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*) 0);
 	glEnableVertexAttribArray(0);
@@ -96,55 +96,26 @@ int main(int argc, char* argv[])
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 
-	glBindVertexArray(VAO[1]);
-
-	glBindBuffer(GL_ARRAY_BUFFER, VBO[1]); 
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW); 
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0); 
-	glEnableVertexAttribArray(0); 
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float))); 
-	glEnableVertexAttribArray(1); 
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
 	//vertex shader1 
-	vertexShader[0] = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader[0], 1, &vertexShaderSource1, NULL);
-	glCompileShader(vertexShader[0]);
+	vertexShader = glCreateShader(GL_VERTEX_SHADER);
+	glShaderSource(vertexShader, 1, &vertexShaderSource1, NULL);
+	glCompileShader(vertexShader);
 
 
 	//fragment shader1
-	fragmentShader[0] = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader[0], 1, &fragmentShaderSource1, NULL);
-	glCompileShader(fragmentShader[0]);
+	fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+	glShaderSource(fragmentShader, 1, &fragmentShaderSource1, NULL);
+	glCompileShader(fragmentShader);
 
-	//vertex shader2
-	vertexShader[1] = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader[1], 1, &vertexShaderSource2, NULL);
-	glCompileShader(vertexShader[1]);
-
-
-	//fragment shader2 
-	fragmentShader[1] = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader[1], 1, &fragmentShaderSource2, NULL);
-	glCompileShader(fragmentShader[1]);
 
 	//shaderpProgram1
-	shaderProgram[0] = glCreateProgram();
-	glAttachShader(shaderProgram[0], vertexShader[0]);
-	glAttachShader(shaderProgram[0], fragmentShader[0]);
-	glLinkProgram(shaderProgram[0]);
+	shaderProgram = glCreateProgram();
+	glAttachShader(shaderProgram, vertexShader);
+	glAttachShader(shaderProgram, fragmentShader);
+	glLinkProgram(shaderProgram);
 
-	glUseProgram(shaderProgram[0]);
+	glUseProgram(shaderProgram);
 
-	//shaderpProgram2
-	shaderProgram[1] = glCreateProgram();
-	glAttachShader(shaderProgram[1], vertexShader[1]);
-	glAttachShader(shaderProgram[1], fragmentShader[1]);
-	glLinkProgram(shaderProgram[1]);
-
-	glUseProgram(shaderProgram[1]);
 
 	//unload buffers
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
@@ -156,7 +127,7 @@ int main(int argc, char* argv[])
 	glEnable(GL_DEPTH_TEST);
 	glDepthFunc(GL_LESS);
 
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	double deltaTime = 0;
 	float oldTick = SDL_GetTicks(), currentTick = 0;
 
@@ -165,6 +136,12 @@ int main(int argc, char* argv[])
 		currentTick = SDL_GetTicks();
 		deltaTime = (currentTick - oldTick)/1000;
 
+		positionX += speedX * deltaTime;
+		positionY += speedY * deltaTime;
+		snakeTailX.push_front(positionX);
+		snakeTailY.push_front(positionY);
+		snakeTailX.pop_back();
+		snakeTailY.pop_back();
 		// Inputs
 		SDL_Event event;
 		while (SDL_PollEvent(&event)) {
@@ -176,6 +153,30 @@ int main(int argc, char* argv[])
 				if (event.key.keysym.sym == SDLK_ESCAPE) {
 					isRunning = false;
 				}
+				if (event.key.keysym.sym == SDLK_RIGHT) {
+					if (speedX == 0) {
+						speedX = 0.5f;
+						speedY = 0.0f;
+					}
+				}
+				if (event.key.keysym.sym == SDLK_LEFT) {
+					if (speedX == 0) {
+						speedX = -0.5f;
+						speedY = 0.0f;
+					}
+				}
+				if (event.key.keysym.sym == SDLK_UP) {
+					if (speedY == 0) {
+						speedX = 0.0f;
+						speedY = 0.5f;
+					}
+				}
+				if (event.key.keysym.sym == SDLK_DOWN) {
+					if (speedY == 0) {
+						speedX = 0.0f;
+						speedY = -0.5f;
+					}
+				}
 				break;
 			default:
 				break;
@@ -184,30 +185,24 @@ int main(int argc, char* argv[])
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear the screen
 
 		// Draw function
+		
+		glUseProgram(shaderProgram);
+		int vertexUniform = glGetUniformLocation(shaderProgram, "offset");
+		glUniform3f(vertexUniform, snakeTailX[0], snakeTailY[0], 0.0f);
 
-		newPosX += (speedX * deltaTime);
-		newPosY += (speedY * deltaTime);
-		if (newPosX - maxX <= -1 || newPosX + maxX >= 1) {
-			speedX *= -1;
+		glUseProgram(shaderProgram);
+		glBindVertexArray(VAO);
+		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+
+		for (int i = 1; i < snakeTailX.size(); i++) {
+			glUseProgram(shaderProgram);
+			int vertexUniform = glGetUniformLocation(shaderProgram, "offset");
+			glUniform3f(vertexUniform, snakeTailX[i], snakeTailY[i], 0.0f);
+
+			glUseProgram(shaderProgram);
+			glBindVertexArray(VAO);
+			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 		}
-		if (newPosY - maxY <= -1 || newPosY + maxY >= 1) {
-			speedY *= -1;
-		}
-		glUseProgram(shaderProgram[0]);
-		int vertexUniform = glGetUniformLocation(shaderProgram[0], "offset");
-		glUniform3f(vertexUniform, newPosX, newPosY, 0.0f);
-
-		glUseProgram(shaderProgram[1]);
-		int vertexUniform2 = glGetUniformLocation(shaderProgram[1], "offset");
-		glUniform3f(vertexUniform2, -newPosX, -newPosY, 0.0f);
-
-		glUseProgram(shaderProgram[0]);
-		glBindVertexArray(VAO[0]);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 12);
-
-		glUseProgram(shaderProgram[1]);
-		glBindVertexArray(VAO[1]);
-		glDrawArrays(GL_TRIANGLE_STRIP, 0, 12);
 
 		oldTick = currentTick;
 		SDL_GL_SwapWindow(Window); // Swapbuffer
